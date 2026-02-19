@@ -4,11 +4,13 @@ import multiprocessing
 from quackosm import PbfFileReader
 from pathlib import Path
 import matplotlib.pyplot as plt
+import numpy as np
 
 ELEPHANT_LOCATIONS = 'elephants.csv'
 NEPAL_PBF = 'nepal-210101.osm.pbf'
 OUTPUT_CSV = 'output/elephants_with_distances.csv'
 OUTPUT_BOXPLOT = 'output/boxplot.png'
+OUTPUT_BARGRAPH = 'output/bargraph.png'
 
 TAGS = {
     "trunk_roads": ["trunk"],
@@ -83,6 +85,40 @@ if __name__ == '__main__':
     plt.savefig(OUTPUT_BOXPLOT, dpi=150)
     plt.show()
     print(f"Boxplot saved to {OUTPUT_BOXPLOT}")
+
+    stats = {'Average': [], 'Median': [], 'Min': [], 'Max': []}
+    for col in TAGS.keys():
+        s = result_df[f'dist_to_{col}'].dropna()
+        stats['Average'].append(s.mean())
+        stats['Median'].append(s.median())
+        stats['Min'].append(s.min())
+        stats['Max'].append(s.max())
+
+    x = np.arange(len(TAGS))
+    width = 0.18
+    offsets = np.linspace(-1.5 * width, 1.5 * width, 4)
+    colors = ['#4C72B0', '#DD8452', '#55A868', '#C44E52']
+
+    fig, ax = plt.subplots(figsize=(14, 7))
+    for i, (stat_name, values) in enumerate(stats.items()):
+        bars = ax.bar(x + offsets[i], values, width, label=stat_name, color=colors[i], alpha=0.85, edgecolor='white')
+        for bar, val in zip(bars, values):
+            ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height(), f'{val:,.0f}',
+                    ha='center', va='bottom', fontsize=7.5, fontweight='bold', rotation=45)
+
+    ax.set_xticks(x)
+    ax.set_xticklabels([k.replace('_', '\n') for k in TAGS.keys()], fontsize=9)
+    ax.set_ylim(0, ax.get_ylim()[1] * 1.2)
+    ax.set_title('Elephant Distance to Road Types Summary Statistics', fontsize=14, fontweight='bold')
+    ax.set_xlabel('Road Type')
+    ax.set_ylabel('Distance (metres)')
+    ax.yaxis.grid(True, linestyle='--', alpha=0.5)
+    ax.set_axisbelow(True)
+    ax.legend(title='Statistic')
+    plt.tight_layout()
+    plt.savefig(OUTPUT_BARGRAPH, dpi=150)
+    plt.show()
+    print(f"Bar graph saved to {OUTPUT_BARGRAPH}")
 
     for col in TAGS.keys():
         if f'dist_to_{col}' in result_df.columns:
